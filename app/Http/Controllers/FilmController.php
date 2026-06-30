@@ -14,6 +14,7 @@ use App\Models\Promo;
 use App\Queries\FetchFilmsQuery;
 use App\Queries\GetFilmWithMetadataQuery;
 use App\Queries\GetSimilarFilmsQuery;
+use Illuminate\Support\Facades\Cache;
 
 /**
  * @psalm-api
@@ -29,9 +30,15 @@ class FilmController extends Controller
      */
     public function index(
         FilmIndexRequest $request,
-        FetchFilmsQuery $query
+        FetchFilmsQuery $query,
     ): Success {
-        $films = $query->execute($request->validated());
+        $params = $request->validated();
+
+        $cacheKey = 'films_list_' . md5(serialize($params));
+
+        $films = Cache::remember($cacheKey, 86400, function () use ($query, $params) {
+            return $query->execute($params);
+        });
 
         return new Success(FilmPreviewResource::collection($films));
     }
@@ -81,7 +88,7 @@ class FilmController extends Controller
     public function update(
         UpdateFilmRequest $request,
         Film $film,
-        SaveFilmAction $action
+        SaveFilmAction $action,
     ): Success {
         $film = $request->save($film, $action);
 
@@ -112,10 +119,14 @@ class FilmController extends Controller
      */
     public function promo(GetFilmWithMetadataQuery $query): Success
     {
-        $promo = Promo::firstOrFail();
         $userId = auth('sanctum')->id();
 
-        $filmResource = $query->execute($promo->film_id, $userId);
+        $cacheKey = "promo_film_user_{$userId}";
+
+        $filmResource = Cache::remember($cacheKey, 86400, function () use ($query, $userId) {
+            $promo = Promo::firstOrFail();
+            return $query->execute($promo->film_id, $userId);
+        });
 
         return new Success($filmResource);
     }

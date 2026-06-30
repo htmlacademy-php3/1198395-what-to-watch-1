@@ -2,7 +2,11 @@
 
 namespace App\Providers;
 
+use App\Models\Film;
+use App\Models\Promo;
 use App\Models\User;
+use App\Observers\FilmObserver;
+use App\Observers\PromoObserver;
 use App\Repositories\FilmsRepositories\FilmsRepositoryInterface;
 use App\Repositories\FilmsRepositories\OmdbFilmsRepository;
 use GuzzleHttp\Client;
@@ -37,5 +41,7 @@ final class AppServiceProvider extends ServiceProvider
         Gate::define('moderator', function (User $user) {
             return $user->hasRole('moderator');
         });
+        Film::observe(FilmObserver::class);
+        Promo::observe(PromoObserver::class);
     }
 }
